@@ -269,6 +269,7 @@ namespace OpenAI
 
             var form = new List<IMultipartFormSection>();
             form.AddFile(request.Image, "image", "image/png");
+            form.AddValue(request.Model, "model");
             form.AddFile(request.Mask, "mask", "image/png");
             form.AddValue(request.Prompt, "prompt");
             form.AddValue(request.N, "n");
@@ -289,6 +290,7 @@ namespace OpenAI
             
             var form = new List<IMultipartFormSection>();
             form.AddFile(request.Image, "image", "image/png");
+            form.AddValue(request.Model, "model");
             form.AddValue(request.N, "n");
             form.AddValue(request.Size, "size");
             form.AddValue(request.ResponseFormat, "response_format");
