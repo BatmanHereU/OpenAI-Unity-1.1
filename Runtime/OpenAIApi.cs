@@ -45,18 +45,18 @@ namespace OpenAI
                 configuration = new Configuration(apiKey, organization);
             }
         }
-        
+
         /// Used for serializing and deserializing PascalCase request object fields into snake_case format for JSON. Ignores null fields when creating JSON strings.
         private readonly JsonSerializerSettings jsonSerializerSettings = new JsonSerializerSettings()
         {
-            NullValueHandling = NullValueHandling.Ignore, 
+            NullValueHandling = NullValueHandling.Ignore,
             ContractResolver = new DefaultContractResolver()
             {
                 NamingStrategy = new CustomNamingStrategy()
             },
             Culture = CultureInfo.InvariantCulture
         };
-        
+
         /// <summary>
         ///     Dispatches an HTTP request to the specified path with the specified method and optional payload.
         /// </summary>
@@ -65,22 +65,22 @@ namespace OpenAI
         /// <param name="payload">An optional byte array of json payload to include in the request.</param>
         /// <typeparam name="T">Response type of the request.</typeparam>
         /// <returns>A Task containing the response from the request as the specified type.</returns>
-        private async Task<T> DispatchRequest<T>(string path, string method, byte[] payload = null) where T: IResponse
+        private async Task<T> DispatchRequest<T>(string path, string method, byte[] payload = null) where T : IResponse
         {
             T data;
-            
+
             using (var request = UnityWebRequest.Put(path, payload))
             {
                 request.method = method;
                 request.SetHeaders(Configuration, ContentType.ApplicationJson);
-                
+
                 var asyncOperation = request.SendWebRequest();
 
                 while (!asyncOperation.isDone) await Task.Yield();
-                
+
                 data = JsonConvert.DeserializeObject<T>(request.downloadHandler.text, jsonSerializerSettings);
             }
-            
+
             if (data?.Error != null)
             {
                 ApiError error = data.Error;
@@ -91,10 +91,10 @@ namespace OpenAI
             {
                 Debug.LogWarning(data.Warning);
             }
-            
+
             return data;
         }
-        
+
         /// <summary>
         ///     Dispatches an HTTP request to the specified path with the specified method and optional payload.
         /// </summary>
@@ -104,13 +104,13 @@ namespace OpenAI
         /// <param name="onComplete">A callback function to be called when the request is complete.</param>
         /// <param name="token">A cancellation token to cancel the request.</param>
         /// <param name="payload">An optional byte array of json payload to include in the request.</param>
-        private async void DispatchRequest<T>(string path, string method, Action<List<T>> onResponse, Action onComplete, CancellationTokenSource token, byte[] payload = null) where T: IResponse
+        private async void DispatchRequest<T>(string path, string method, Action<List<T>> onResponse, Action onComplete, CancellationTokenSource token, byte[] payload = null) where T : IResponse
         {
             using (var request = UnityWebRequest.Put(path, payload))
             {
                 request.method = method;
                 request.SetHeaders(Configuration, ContentType.ApplicationJson);
-                
+
                 var asyncOperation = request.SendWebRequest();
 
                 do
@@ -121,13 +121,13 @@ namespace OpenAI
                     foreach (string line in lines)
                     {
                         var value = line.Replace("data: ", "");
-                        
-                        if (value.Contains("[DONE]")) 
+
+                        if (value.Contains("[DONE]"))
                         {
                             onComplete?.Invoke();
                             break;
                         }
-                        
+
                         var data = JsonConvert.DeserializeObject<T>(value, jsonSerializerSettings);
 
                         if (data?.Error != null)
@@ -141,11 +141,11 @@ namespace OpenAI
                         }
                     }
                     onResponse?.Invoke(dataList);
-                    
+
                     await Task.Yield();
                 }
                 while (!asyncOperation.isDone && !token.IsCancellationRequested);
-                
+
                 onComplete?.Invoke();
             }
         }
@@ -157,25 +157,25 @@ namespace OpenAI
         /// <param name="form">A multi-part data form to upload with the request.</param>
         /// <typeparam name="T">Response type of the request.</typeparam>
         /// <returns>A Task containing the response from the request as the specified type.</returns>
-        private async Task<T> DispatchRequest<T>(string path, List<IMultipartFormSection> form) where T: IResponse
+        private async Task<T> DispatchRequest<T>(string path, List<IMultipartFormSection> form) where T : IResponse
         {
             T data;
-            
+
             using (var request = new UnityWebRequest(path, "POST"))
             {
                 request.SetHeaders(Configuration);
                 var boundary = UnityWebRequest.GenerateBoundary();
                 var formSections = UnityWebRequest.SerializeFormSections(form, boundary);
                 var contentType = $"{ContentType.MultipartFormData}; boundary={Encoding.UTF8.GetString(boundary)}";
-                request.uploadHandler = new UploadHandlerRaw(formSections) {contentType = contentType};
+                request.uploadHandler = new UploadHandlerRaw(formSections) { contentType = contentType };
                 request.downloadHandler = new DownloadHandlerBuffer();
                 var asyncOperation = request.SendWebRequest();
 
                 while (!asyncOperation.isDone) await Task.Yield();
-                
+
                 data = JsonConvert.DeserializeObject<T>(request.downloadHandler.text, jsonSerializerSettings);
             }
-            
+
             if (data != null && data.Error != null)
             {
                 ApiError error = data.Error;
@@ -205,7 +205,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/models";
             return await DispatchRequest<ListModelsResponse>(path, UnityWebRequest.kHttpVerbGET);
         }
-        
+
         /// <summary>
         ///     Retrieves a model instance, providing basic information about the model such as the owner and permissioning.
         /// </summary>
@@ -226,10 +226,10 @@ namespace OpenAI
         {
             var path = $"{BASE_PATH}/chat/completions";
             var payload = CreatePayload(request);
-            
+
             return await DispatchRequest<CreateChatCompletionResponse>(path, UnityWebRequest.kHttpVerbPOST, payload);
         }
-        
+
         /// <summary>
         ///     Creates a chat completion request as in ChatGPT.
         /// </summary>
@@ -242,10 +242,10 @@ namespace OpenAI
             request.Stream = true;
             var path = $"{BASE_PATH}/chat/completions";
             var payload = CreatePayload(request);
-            
+
             DispatchRequest(path, UnityWebRequest.kHttpVerbPOST, onResponse, onComplete, token, payload);
         }
-        
+
         /// <summary>
         ///     Creates an image given a prompt.
         /// </summary>
@@ -257,7 +257,7 @@ namespace OpenAI
             var payload = CreatePayload(request);
             return await DispatchRequest<CreateImageResponse>(path, UnityWebRequest.kHttpVerbPOST, payload);
         }
-        
+
         /// <summary>
         ///     Creates an edited or extended image given an original image and a prompt.
         /// </summary>
@@ -270,15 +270,16 @@ namespace OpenAI
             var form = new List<IMultipartFormSection>();
             form.AddFile(request.Image, "image", "image/png");
             form.AddValue(request.Model, "model");
+            form.AddValue(request.Quality, "quality");
             form.AddFile(request.Mask, "mask", "image/png");
             form.AddValue(request.Prompt, "prompt");
             form.AddValue(request.N, "n");
             form.AddValue(request.Size, "size");
             form.AddValue(request.ResponseFormat, "response_format");
-            
+
             return await DispatchRequest<CreateImageResponse>(path, form);
         }
-        
+
         /// <summary>
         ///     Creates a variation of a given image.
         /// </summary>
@@ -287,18 +288,19 @@ namespace OpenAI
         public async Task<CreateImageResponse> CreateImageVariation(CreateImageVariationRequest request)
         {
             var path = $"{BASE_PATH}/images/variations";
-            
+
             var form = new List<IMultipartFormSection>();
             form.AddFile(request.Image, "image", "image/png");
             form.AddValue(request.Model, "model");
+            form.AddValue(request.Quality, "quality");
             form.AddValue(request.N, "n");
             form.AddValue(request.Size, "size");
             form.AddValue(request.ResponseFormat, "response_format");
             form.AddValue(request.User, "user");
-            
+
             return await DispatchRequest<CreateImageResponse>(path, form);
         }
-       
+
         /// <summary>
         ///     Creates an embedding vector representing the input text.
         /// </summary>
@@ -319,7 +321,7 @@ namespace OpenAI
         public async Task<CreateAudioResponse> CreateAudioTranscription(CreateAudioTranscriptionsRequest request)
         {
             var path = $"{BASE_PATH}/audio/transcriptions";
-            
+
             var form = new List<IMultipartFormSection>();
             if (string.IsNullOrEmpty(request.File))
             {
@@ -337,7 +339,7 @@ namespace OpenAI
 
             return await DispatchRequest<CreateAudioResponse>(path, form);
         }
-        
+
         /// <summary>
         ///     Translates audio into into English.
         /// </summary>
@@ -346,7 +348,7 @@ namespace OpenAI
         public async Task<CreateAudioResponse> CreateAudioTranslation(CreateAudioTranslationRequest request)
         {
             var path = $"{BASE_PATH}/audio/translations";
-            
+
             var form = new List<IMultipartFormSection>();
             if (string.IsNullOrEmpty(request.File))
             {
@@ -363,7 +365,7 @@ namespace OpenAI
 
             return await DispatchRequest<CreateAudioResponse>(path, form);
         }
-        
+
         /// <summary>
         ///     Returns a list of files that belong to the user's organization.
         /// </summary>
@@ -373,7 +375,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/files";
             return await DispatchRequest<ListFilesResponse>(path, UnityWebRequest.kHttpVerbGET);
         }
-        
+
         /// <summary>
         ///     Upload a file that contains document(s) to be used across various endpoints/features.
         ///     Currently, the size of all the files uploaded by one organization can be up to 1 GB.
@@ -384,14 +386,14 @@ namespace OpenAI
         public async Task<OpenAIFile> CreateFile(CreateFileRequest request)
         {
             var path = $"{BASE_PATH}/files";
-            
+
             var form = new List<IMultipartFormSection>();
             form.AddFile(request.File, "file", "application/json");
             form.AddValue(request.Purpose, "purpose");
-            
+
             return await DispatchRequest<OpenAIFileResponse>(path, form);
         }
-        
+
         /// <summary>
         ///     Delete a file.
         /// </summary>
@@ -402,7 +404,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/files/{id}";
             return await DispatchRequest<DeleteResponse>(path, UnityWebRequest.kHttpVerbDELETE);
         }
-        
+
         /// <summary>
         ///     Returns information about a specific file.
         /// </summary>
@@ -413,7 +415,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/files/{id}";
             return await DispatchRequest<OpenAIFileResponse>(path, UnityWebRequest.kHttpVerbGET);
         }
-        
+
         /// <summary>
         ///     Returns the contents of the specified file
         /// </summary>
@@ -424,7 +426,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/files/{id}/content";
             return await DispatchRequest<OpenAIFileResponse>(path, UnityWebRequest.kHttpVerbGET);
         }
-        
+
         /// <summary>
         ///     Manage fine-tuning jobs to tailor a model to your specific training data.
         ///     Related guide: <a href="https://beta.openai.com/docs/guides/fine-tuning">Fine-tune models</a>
@@ -437,7 +439,7 @@ namespace OpenAI
             var payload = CreatePayload(request);
             return await DispatchRequest<FineTuneResponse>(path, UnityWebRequest.kHttpVerbPOST, payload);
         }
-        
+
         /// <summary>
         ///     List your organization's fine-tuning jobs
         /// </summary>
@@ -447,7 +449,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/fine-tunes";
             return await DispatchRequest<ListFineTunesResponse>(path, UnityWebRequest.kHttpVerbGET);
         }
-        
+
         /// <summary>
         ///     Gets info about the fine-tune job.
         /// </summary>
@@ -458,7 +460,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/fine-tunes/{id}";
             return await DispatchRequest<FineTuneResponse>(path, UnityWebRequest.kHttpVerbGET);
         }
-        
+
         /// <summary>
         ///     Immediately cancel a fine-tune job.
         /// </summary>
@@ -469,7 +471,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/fine-tunes/{id}/cancel";
             return await DispatchRequest<FineTuneResponse>(path, UnityWebRequest.kHttpVerbPOST);
         }
-        
+
         /// <summary>
         ///     Get fine-grained status updates for a fine-tune job.
         /// </summary>
@@ -484,7 +486,7 @@ namespace OpenAI
             var path = $"{BASE_PATH}/fine-tunes/{id}/events?stream={stream}";
             return await DispatchRequest<ListFineTuneEventsResponse>(path, UnityWebRequest.kHttpVerbGET);
         }
-        
+
         /// <summary>
         ///     Delete a fine-tuned model. You must have the Owner role in your organization.
         /// </summary>
